@@ -11,6 +11,7 @@
 
 //Local dependencies
 #include "include/checkMakeDir.h"
+#include "include/getLogBins.h"
 #include "include/histDefUtility.h"
 #include "include/L1AnalysisL1CaloTowerDataFormat.h"
 #include "include/plotUtilities.h"
@@ -40,13 +41,22 @@ int emptyBunches(const std::string inFileName)
   
   outFileName = "output/" + dateStr + "/" + outFileName + "_EmptyBunches_" + dateStr + ".root";
   
+  const Int_t nL1HFBins = 50;
+  const Float_t l1HFBinsLow = 0.5;
+  const Float_t l1HFBinsHigh = 10000.0;
+  Double_t l1HFBins[nL1HFBins+1];
+  getLogBins(l1HFBinsLow, l1HFBinsHigh, nL1HFBins, l1HFBins);
+
+
   TFile* outFile_p = new TFile(outFileName.c_str(), "RECREATE");
-  TH1F* l1IEtSumNotHF_IEta28_h = new TH1F("l1IEtSumNotHF_IEta28_h", ";#Sigma iEt (|ieta| <= 28);#frac{1}{N_{Evt}} Counts", 100, -0.5, 199.5);
-  TH1F* l1IEtSumNotHF_IEta24_h = new TH1F("l1IEtSumNotHF_IEta24_h", ";#Sigma iEt (|ieta| <= 24);#frac{1}{N_{Evt}} Counts", 100, -0.5, 199.5);
+  TH1F* l1IEtSumHF_h = new TH1F("l1IEtSumHF_h", ";#Sigma iEt (|ieta| >= 30);#frac{1}{N_{Evt}} Counts", nL1HFBins, l1HFBins);
+  TH1F* l1IEtSumNotHF_IEta28_h = new TH1F("l1IEtSumNotHF_IEta28_h", ";#Sigma iEt (|ieta| <= 28);#frac{1}{N_{Evt}} Counts", nL1HFBins, l1HFBins);
+  TH1F* l1IEtSumNotHF_IEta24_h = new TH1F("l1IEtSumNotHF_IEta24_h", ";#Sigma iEt (|ieta| <= 24);#frac{1}{N_{Evt}} Counts", nL1HFBins, l1HFBins);
 
-  centerTitles({l1IEtSumNotHF_IEta28_h, l1IEtSumNotHF_IEta24_h});
-  setSumW2({l1IEtSumNotHF_IEta28_h, l1IEtSumNotHF_IEta24_h});
-
+  std::vector<TH1*> tempVect = {l1IEtSumHF_h, l1IEtSumNotHF_IEta28_h, l1IEtSumNotHF_IEta24_h};
+  centerTitles(tempVect);
+  setSumW2(tempVect);
+	   
   TFile* inFile_p = new TFile(inFileName.c_str(), "READ");
   std::vector<std::string> fileList = returnRootFileContentsList(inFile_p, "TTree", "Tower");
   bool hasEmuTower = false;
@@ -66,6 +76,7 @@ int emptyBunches(const std::string inFileName)
     inFile_p->Close();
     delete inFile_p;
 
+    delete l1IEtSumHF_h;
     delete l1IEtSumNotHF_IEta28_h;
     delete l1IEtSumNotHF_IEta24_h;
 
@@ -92,10 +103,13 @@ int emptyBunches(const std::string inFileName)
 
     l1CaloTree_p->GetEntry(entry);
 
+    Int_t ietSumHF_ = 0;
     Int_t ietSumNotHF_IEta28_ = 0;
     Int_t ietSumNotHF_IEta24_ = 0;
 
     for(unsigned int i = 0; i < towers_->iet.size(); ++i){
+      if(TMath::Abs(towers_->ieta[i]) >= 30) ietSumHF_ += towers_->iet[i];
+
       if(TMath::Abs(towers_->ieta[i]) >= 29) continue;
       ietSumNotHF_IEta28_ += towers_->iet[i];
 
@@ -103,7 +117,12 @@ int emptyBunches(const std::string inFileName)
       if(TMath::Abs(towers_->ieta[i]) >= 25) continue;      
       ietSumNotHF_IEta24_ += towers_->iet[i];
     }
+    
+    if(ietSumHF_ == 0) ietSumHF_ = 1.;
+    if(ietSumNotHF_IEta28_ == 0) ietSumNotHF_IEta28_ = 1.;
+    if(ietSumNotHF_IEta24_ == 0) ietSumNotHF_IEta24_ = 1.;
 
+    l1IEtSumHF_h->Fill(ietSumHF_);
     l1IEtSumNotHF_IEta28_h->Fill(ietSumNotHF_IEta28_);
     l1IEtSumNotHF_IEta24_h->Fill(ietSumNotHF_IEta24_);
   }
@@ -113,8 +132,12 @@ int emptyBunches(const std::string inFileName)
 
   outFile_p->cd();
 
+  l1IEtSumHF_h->Scale(1./(Double_t)nEntries);
   l1IEtSumNotHF_IEta28_h->Scale(1./(Double_t)nEntries);
   l1IEtSumNotHF_IEta24_h->Scale(1./(Double_t)nEntries);
+
+  l1IEtSumHF_h->Write("", TObject::kOverwrite);
+  delete l1IEtSumHF_h;
 
   l1IEtSumNotHF_IEta28_h->Write("", TObject::kOverwrite);
   delete l1IEtSumNotHF_IEta28_h;
