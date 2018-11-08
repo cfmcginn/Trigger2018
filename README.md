@@ -11,7 +11,11 @@ Note: Argument <inputCSVOfGoogleDoc> cannot be a csv directly from google doc (t
 Note: Argument <optionalInputOpenHLTForRateCheck> is an openHLT file for x-checking of rates in doc. If absent, doc will only be checked for internal consistency + prime prescaling
 
 Recommended use:
+
 ./bin/globalCSVToPrescales.exe <inputCSVOfGoogleDoc> <optionalInputOpenHLTForRateCheck> >& out.log
+
 grep WARNING out.log  # for all warnings
+
 grep WARNING out.log | grep presc # for prescale warnings
+
 grep WARNING out.log | grep deviatt # for rate warnings
