@@ -12,9 +12,11 @@
 
 //Local dependencies
 #include "include/checkMakeDir.h"
+#include "include/listOfPrimes.h"
 #include "include/plotUtilities.h"
 #include "include/returnRootFileContentsList.h"
 #include "include/stringUtil.h"
+
 
 int globalCSVToPrescales(const std::string inCSVName, const std::string inRootName = "", const double deviation = 0.1)
 {
@@ -103,6 +105,24 @@ int globalCSVToPrescales(const std::string inCSVName, const std::string inRootNa
       int l1Prescale = std::stoi(strVect.at(l1PrescalePos.at(cI)));
       int hltPrescale = std::stoi(strVect.at(hltPrescalePos.at(cI)));
 
+      int l1PrimeLow = 0;
+      if(l1Prescale != 0) l1PrimeLow = getNearestPrimeLow(l1Prescale);
+      int l1PrimeHigh = 0;
+      if(l1Prescale != 0) l1PrimeHigh = getNearestPrimeHigh(l1Prescale);
+
+      int hltPrimeLow = 0;
+      if(hltPrescale != 0) hltPrimeLow = getNearestPrimeLow(hltPrescale);
+      int hltPrimeHigh = 0;
+      if(hltPrescale != 0) hltPrimeHigh = getNearestPrimeHigh(hltPrescale);
+
+      if(l1PrimeLow != l1Prescale && l1PrimeHigh != l1Prescale && l1Prescale != 0){
+	std::cout << "WARNING: L1 prescale for path \'" << strVect.at(2) << "\' is not prime in " << collRates.at(cI) << " kHz. Current: " << l1Prescale << ". Consider " << l1PrimeLow << " or " << l1PrimeHigh << std::endl;
+      }
+
+      if(hltPrimeLow != hltPrescale && hltPrimeHigh != hltPrescale && hltPrescale != 0){
+	std::cout << "WARNING: HLT prescale for path \'" << strVect.at(1) << "\' is not prime in " << collRates.at(cI) << " kHz. Current: " << hltPrescale << ". Consider " << hltPrimeLow << " or " << hltPrimeHigh << std::endl;
+      }
+
       double l1Rate = 0;
       double hltRate = 0;
       std::string l1RateStr = strVect.at(l1RatePos.at(cI));
@@ -110,6 +130,8 @@ int globalCSVToPrescales(const std::string inCSVName, const std::string inRootNa
 
       if(l1RateStr.size() != 0 && l1RateStr.find("DIV") == std::string::npos) l1Rate = std::stod(l1RateStr);
       if(hltRateStr.size() != 0 && hltRateStr.find("DIV") == std::string::npos) hltRate = std::stod(hltRateStr);
+
+      
 
       if(l1CollTriggerPrescaleMap.at(cI).count(strVect.at(2)) == 0){
 	(l1CollTriggerPrescaleMap.at(cI))[strVect.at(2)] = l1Prescale;
@@ -333,6 +355,20 @@ int globalCSVToPrescales(const std::string inCSVName, const std::string inRootNa
       }
     }
     hltFileTSV.close();
+  }
+
+  std::map<std::string, double> l1rates = l1CollTriggerRateMap.at(0);
+  std::map<std::string, double> hltrates = hltCollTriggerRateMap.at(0);
+
+  std::cout << "L1 TRIGGER, NAME, FRACTION," << std::endl;
+  for(auto const& l1 : l1rates){
+    std::cout << "L1 TRIGGER, " << l1.first << ", " << l1.second/(1000.*collRates.at(0)) << std::endl;
+  }
+  std::cout << std::endl;
+
+  std::cout << "HLT TRIGGER, NAME, FRACTION," << std::endl;
+  for(auto const& hlt : hltrates){
+    std::cout << "HLT TRIGGER, " << hlt.first << ", " << hlt.second/(1000.*collRates.at(0)) << std::endl;
   }
 
   return 0;
