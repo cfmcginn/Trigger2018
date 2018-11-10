@@ -12,7 +12,7 @@ MKDIR_BIN = mkdir -p $(PWD)/bin
 MKDIR_PDFDIR = mkdir -p $(PWD)/pdfDir
 MKDIR_OUTPUT = mkdir -p $(PWD)/output
 
-all: mkdirBin mkdirOutput mkdirPdfdir bin/l1Comp.exe bin/l1OfflineSubtract.exe bin/l1FiringFraction.exe bin/l1CaloTowerDist.exe bin/l1OfflineEvtDisp.exe bin/l1ToTTree.exe bin/hltFiringFraction.exe bin/checkHLTAgainstL1Xml.exe bin/checkHLTAgainstPrescaleInput.exe bin/listHLT.exe bin/doPrescaling.exe bin/quickHiBin.exe bin/emptyBunches.exe bin/createJsonFromL1.exe bin/modInput.exe bin/countsFromMB.exe bin/targetGlobalPrescaledRate.exe bin/categorySort.exe bin/countSummary.exe bin/globalCSVToPrescales.exe bin/runMBScenario.exe
+all: mkdirBin mkdirOutput mkdirPdfdir bin/l1Comp.exe bin/l1OfflineSubtract.exe bin/l1FiringFraction.exe bin/l1CaloTowerDist.exe bin/l1OfflineEvtDisp.exe bin/l1ToTTree.exe bin/hltFiringFraction.exe bin/checkHLTAgainstL1Xml.exe bin/checkHLTAgainstPrescaleInput.exe bin/listHLT.exe bin/doPrescaling.exe bin/quickHiBin.exe bin/emptyBunches.exe bin/createJsonFromL1.exe bin/modInput.exe bin/countsFromMB.exe bin/targetGlobalPrescaledRate.exe bin/categorySort.exe bin/countSummary.exe bin/globalCSVToPrescales.exe bin/runMBScenario.exe bin/quickTrigger.exe bin/createJsonFromForest.exe
 
 mkdirBin:
 	$(MKDIR_BIN)
@@ -85,6 +85,12 @@ bin/globalCSVToPrescales.exe: src/globalCSVToPrescales.C
 
 bin/runMBScenario.exe: src/runMBScenario.C
 	$(CXX) src/runMBScenario.C $(CXXFLAGS) $(ROOT) -I $(PWD) -o bin/runMBScenario.exe
+
+bin/quickTrigger.exe: src/quickTrigger.C
+	$(CXX) src/quickTrigger.C $(CXXFLAGS) $(ROOT) -I $(PWD) -o bin/quickTrigger.exe
+
+bin/createJsonFromForest.exe: src/createJsonFromForest.C
+	$(CXX) $(CXXFLAGS) src/createJsonFromForest.C $(ROOT) -I $(PWD) -o bin/createJsonFromForest.exe 
 
 clean:
 	rm *~ || true
