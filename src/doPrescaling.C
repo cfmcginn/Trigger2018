@@ -489,7 +489,7 @@ int doPrescaling(const std::string inFileName, const std::string prescaleConfigN
   std::cout << std::endl;
 
   std::cout << "SUPER SUMMARY: PD, Total Prescaled Fires, Rate at " << (Int_t)inCollisionRatekHz << "kHz (Hz)";
-  if(doHibin) std::cout << ", Avg. RAW+AOD size (MB), Avg. RAW size (MB), Avg. AOD size (MB)" << std::endl;
+  if(doHibin) std::cout << ", Avg. Cent, Avg. RAW+AOD size (MB), Avg. RAW size (MB), Avg. AOD size (MB)" << std::endl;
   else std::cout << std::endl;
 
   std::map<std::string, int>  uniqueOverlapsCounts;
@@ -500,18 +500,21 @@ int doPrescaling(const std::string inFileName, const std::string prescaleConfigN
   for(auto const &iter : pdMapToFires){
     std::cout << " SUPER SUMMARY: " << iter.first << ", " << iter.second << ", " << ((Double_t)iter.second)*inCollisionRatekHz*1000./((Double_t)nEntries);
     
+    Double_t cent = 0;
     Double_t totalSize = 0;
     Double_t rawSize = 0;
     Double_t aodSize = 0;
     
     if(doHibin){
       for(Int_t cI = 0; cI < nCentBins; ++cI){
+	cent += ((centBins[cI] + centBins[cI+1])*0.5)*((Double_t)pdMapCentrality[iter.first].at(cI))/((Double_t)iter.second);
+
 	totalSize += ((Double_t)pdMapCentrality[iter.first].at(cI))/((Double_t)iter.second)*(rawSizes[cI] + aodSizes[cI]);
 	rawSize += ((Double_t)pdMapCentrality[iter.first].at(cI))/((Double_t)iter.second)*(rawSizes[cI]);
 	aodSize += ((Double_t)pdMapCentrality[iter.first].at(cI))/((Double_t)iter.second)*(aodSizes[cI]);
       }
 
-      std::cout << ", " << prettyString(totalSize, 2, false) << ", " << prettyString(rawSize, 2, false)  << ", " << prettyString(aodSize, 2, false) << std::endl;
+      std::cout << ", " << cent << ", " << prettyString(totalSize, 2, false) << ", " << prettyString(rawSize, 2, false)  << ", " << prettyString(aodSize, 2, false) << std::endl;
     }
     else std::cout << std::endl;
 

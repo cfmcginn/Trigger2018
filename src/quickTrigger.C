@@ -27,7 +27,7 @@
 #include "include/runLumiEventKey.h"
 #include "include/stringUtil.h"
 
-int quickTrigger(const std::string inOffFileName, const std::string jetTree, const std::string inHLTFileName, const std::string commaSeparatedTrigList, const std::string addedTag)
+int quickTrigger(const std::string inOffFileName, const std::string jetOrEGTree, const std::string inHLTFileName, const std::string commaSeparatedTrigList, const std::string addedTag)
 {
   if(!checkFile(inOffFileName) || inOffFileName.find(".root") == std::string::npos){
     std::cout << "Given inOffFileName \'" << inOffFileName << "\' is invalid. return 1" << std::endl;
@@ -50,16 +50,16 @@ int quickTrigger(const std::string inOffFileName, const std::string jetTree, con
   inOffFile_p->Close();
   delete inOffFile_p;
 
-  bool hasJetTree = false;
+  bool hasJetOrEGTree = false;
   std::string hltTreeName = "";
   std::string hiTreeName = "";
   for(auto const & tree : listOfTTree){
     if(tree.find("hlt") != std::string::npos && tree.find("HltTree") != std::string::npos) hltTreeName = tree;
     if(tree.find("hiEvt") != std::string::npos && tree.find("HiTree") != std::string::npos) hiTreeName = tree;
-    else if(isStrSame(tree, jetTree)) hasJetTree = true;
+    else if(isStrSame(tree, jetOrEGTree)) hasJetOrEGTree = true;
   }
 
-  if(!hasJetTree || (hltTreeName.size() == 0 && hiTreeName.size() == 0)){
+  if(!hasJetOrEGTree || (hltTreeName.size() == 0 && hiTreeName.size() == 0)){
     std::cout << "Given inOffFileName \'" << inOffFileName << "\' doesn't contain jet or hlt/hi tree" << std::endl;
     std::cout << " Available trees: ";
     for(auto const & tree : listOfTTree){
@@ -194,20 +194,45 @@ int quickTrigger(const std::string inOffFileName, const std::string jetTree, con
 
   
   std::cout << "Map entries: " << mapOfHLTRunLumiEvtToEntry.size() << std::endl;
-  std::string denomName = "denomHist_" + jetTree + "_h";
+  std::string denomName = "denomHist_" + jetOrEGTree + "_h";
   while(denomName.find("/") != std::string::npos){denomName.replace(denomName.find("/"), 1, "_");}
 
-  Double_t absEtaMax = 2.4;
-  if(jetTree.find("akCs4PF") != std::string::npos) absEtaMax = 1.5;
-  const Int_t nBins = 22;
-  const Double_t binLow = 15;
-  const Double_t binHi = 135;
+  Double_t absEtaMax = 2.0;
+  bool isOfflineJet = jetOrEGTree.find("ggHiNtuplizer") == std::string::npos;
+
+  if(jetOrEGTree.find("akCs4PF") != std::string::npos) absEtaMax = 1.3;
+  else if(!isOfflineJet) absEtaMax = 1.44;
+
+  const Int_t nBinsJet = 26;
+  const Double_t binJetLow = 15;
+  const Double_t binJetHi = 155;
+
+  const Int_t nBinsPhoton = 18;
+  const Double_t binPhotonLow = 10;
+  const Double_t binPhotonHi = 100;
  
-  TH1D* dummyHist_p = new TH1D("dummyHist_p", (";" + jetTree + " Jet p_{T};Efficiency").c_str(), nBins, binLow, binHi);
+  Int_t nBinsTemp = nBinsJet;
+  Double_t binTempLow = binJetLow;
+  Double_t binTempHi = binJetHi;
+  std::string xLabelStr = "Jet p_{T}";
+
+  if(!isOfflineJet){
+    nBinsTemp = nBinsPhoton;
+    binTempLow = binPhotonLow;
+    binTempHi = binPhotonHi;    
+
+    xLabelStr = "Photon p_{T}";
+  }
+
+  const Int_t nBins = nBinsTemp;
+  const Double_t binLow = binTempLow;
+  const Double_t binHi = binTempHi;
+
+  TH1D* dummyHist_p = new TH1D("dummyHist_p", (";" + jetOrEGTree + " " + xLabelStr + ";Efficiency").c_str(), nBins, binLow, binHi);
   dummyHist_p->SetMaximum(1.2);
   dummyHist_p->SetMaximum(0.0);
 
-  TH1D* denomHist_p = new TH1D(denomName.c_str(), (";" + jetTree + " Jet p_{T};Counts").c_str(), nBins, binLow, binHi);
+  TH1D* denomHist_p = new TH1D(denomName.c_str(), (";" + jetOrEGTree + " " + xLabelStr + ";Counts").c_str(), nBins, binLow, binHi);
 
   L1Analysis::L1AnalysisL1UpgradeDataFormat* Ana = new L1Analysis::L1AnalysisL1UpgradeDataFormat();
 
@@ -215,7 +240,7 @@ int quickTrigger(const std::string inOffFileName, const std::string jetTree, con
   TH1D* trigHist_p[nTrig];
   std::vector<TH1*> tempHistVect = {dummyHist_p, denomHist_p};
 
-  const bool isJet = trigList.at(0).find("Jet") != std::string::npos;
+  const bool isTrigJet = trigList.at(0).find("Jet") != std::string::npos;
   Int_t trigVal[nTrig];
   bool goodThresh[nTrig];
   for(Int_t i = 0; i < nTrig; ++i){goodThresh[i] = false;}
@@ -268,10 +293,9 @@ int quickTrigger(const std::string inOffFileName, const std::string jetTree, con
   }
 
   for(Int_t tI = 0; tI < nTrig; ++tI){
-    trigHist_p[tI] = new TH1D(("histNum_" + std::to_string(tI) + "_h").c_str(), (";" + jetTree + " Jet p_{T};Counts && " + trigList.at(tI)).c_str(), nBins, binLow, binHi);
+    trigHist_p[tI] = new TH1D(("histNum_" + std::to_string(tI) + "_h").c_str(), (";" + jetOrEGTree + " " + xLabelStr + ";Counts && " + trigList.at(tI)).c_str(), nBins, binLow, binHi);
     tempHistVect.push_back(trigHist_p[tI]);
   }
-
   
   setSumW2(tempHistVect);
   centerTitles(tempHistVect);
@@ -282,7 +306,7 @@ int quickTrigger(const std::string inOffFileName, const std::string jetTree, con
   UInt_t runHI_, lumiHI_;
   ULong64_t eventHI_;
 
-  TTree* jetTree_p = (TTree*)inOffFile_p->Get(jetTree.c_str());
+  TTree* jetOrEGTree_p = (TTree*)inOffFile_p->Get(jetOrEGTree.c_str());
   TTree* hltTree_p = NULL;
   TTree* hiTree_p = NULL;
 
@@ -322,89 +346,154 @@ int quickTrigger(const std::string inOffFileName, const std::string jetTree, con
   Float_t jtPfMUF_[nMaxJet];
   Float_t jtPfCHF_[nMaxJet];
 
-  jetTree_p->SetBranchStatus("*", 0);
-  jetTree_p->SetBranchStatus("nref", 1);
-  jetTree_p->SetBranchStatus("jtpt", 1);
-  jetTree_p->SetBranchStatus("rawpt", 1);
-  jetTree_p->SetBranchStatus("jtphi", 1);
-  jetTree_p->SetBranchStatus("jteta", 1);
-  jetTree_p->SetBranchStatus("jtPfMUF", 1);
-  jetTree_p->SetBranchStatus("jtPfCHF", 1);
+  std::vector<float>* phoEt_p = NULL;
+  std::vector<float>* phoEta_p = NULL;
+  std::vector<float> *pho_swissCrx_p = NULL;
+  std::vector<float> *pho_seedTime_p = NULL;
+  std::vector<float> *phoSigmaIEtaIEta_2012_p = NULL;
+  std::vector<float> *phoHoverE_p = NULL;
+  std::vector<float> *pho_ecalClusterIsoR4_p = NULL;
+  std::vector<float> *pho_hcalRechitIsoR4_p = NULL;
+  std::vector<float> *pho_trackIsoR4PtCut20_p = NULL;
 
-  jetTree_p->SetBranchAddress("nref", &nref_);
-  jetTree_p->SetBranchAddress("jtpt", jtpt_);
-  jetTree_p->SetBranchAddress("rawpt", rawpt_);
-  jetTree_p->SetBranchAddress("jtphi", jtphi_);
-  jetTree_p->SetBranchAddress("jteta", jteta_);
-  jetTree_p->SetBranchAddress("jtPfMUF", jtPfMUF_);
-  jetTree_p->SetBranchAddress("jtPfCHF", jtPfCHF_);
+
+  jetOrEGTree_p->SetBranchStatus("*", 0);
+
+  if(isOfflineJet){
+    jetOrEGTree_p->SetBranchStatus("nref", 1);
+    jetOrEGTree_p->SetBranchStatus("jtpt", 1);
+    jetOrEGTree_p->SetBranchStatus("rawpt", 1);
+    jetOrEGTree_p->SetBranchStatus("jtphi", 1);
+    jetOrEGTree_p->SetBranchStatus("jteta", 1);
+    jetOrEGTree_p->SetBranchStatus("jtPfMUF", 1);
+    jetOrEGTree_p->SetBranchStatus("jtPfCHF", 1);
+    
+    jetOrEGTree_p->SetBranchAddress("nref", &nref_);
+    jetOrEGTree_p->SetBranchAddress("jtpt", jtpt_);
+    jetOrEGTree_p->SetBranchAddress("rawpt", rawpt_);
+    jetOrEGTree_p->SetBranchAddress("jtphi", jtphi_);
+    jetOrEGTree_p->SetBranchAddress("jteta", jteta_);
+    jetOrEGTree_p->SetBranchAddress("jtPfMUF", jtPfMUF_);
+    jetOrEGTree_p->SetBranchAddress("jtPfCHF", jtPfCHF_);
+  }
+  else{
+    jetOrEGTree_p->SetBranchStatus("phoEt", 1);
+    jetOrEGTree_p->SetBranchStatus("phoEta", 1);
+    jetOrEGTree_p->SetBranchStatus("pho_swissCrx", 1);
+    jetOrEGTree_p->SetBranchStatus("pho_seedTime", 1);
+    jetOrEGTree_p->SetBranchStatus("phoSigmaIEtaIEta_2012", 1);
+    jetOrEGTree_p->SetBranchStatus("phoHoverE", 1);
+    jetOrEGTree_p->SetBranchStatus("pho_ecalClusterIsoR4", 1);
+    jetOrEGTree_p->SetBranchStatus("pho_hcalRechitIsoR4", 1);
+    jetOrEGTree_p->SetBranchStatus("pho_trackIsoR4PtCut20", 1);
+
+    jetOrEGTree_p->SetBranchAddress("phoEt", &(phoEt_p));
+    jetOrEGTree_p->SetBranchAddress("phoEta", &(phoEta_p));
+    jetOrEGTree_p->SetBranchAddress("pho_swissCrx", &(pho_swissCrx_p));
+    jetOrEGTree_p->SetBranchAddress("pho_seedTime", &(pho_seedTime_p));
+    jetOrEGTree_p->SetBranchAddress("phoSigmaIEtaIEta_2012", &(phoSigmaIEtaIEta_2012_p));
+    jetOrEGTree_p->SetBranchAddress("phoHoverE", &(phoHoverE_p));
+    jetOrEGTree_p->SetBranchAddress("pho_ecalClusterIsoR4", &(pho_ecalClusterIsoR4_p));
+    jetOrEGTree_p->SetBranchAddress("pho_hcalRechitIsoR4", &(pho_hcalRechitIsoR4_p));
+    jetOrEGTree_p->SetBranchAddress("pho_trackIsoR4PtCut20", &(pho_trackIsoR4PtCut20_p));
+  }
 
   Int_t matchCount = 0;
-  
-  const Int_t nEntries = jetTree_p->GetEntries();
-  std::cout << "Processing jetTree, " << nEntries << "..." << std::endl;
+  std::map<unsigned int, unsigned long long> mapOfEventsInRun;
+  std::map<unsigned int, unsigned long long> mapOfEventsInRunMatched;
+
+  const Int_t nEntries = jetOrEGTree_p->GetEntries();
+  std::cout << "Processing " << jetOrEGTree << ", " << nEntries << "..." << std::endl;
   const Int_t nDiv = TMath::Max(1, (Int_t)(nEntries/20));
 
   for(Int_t entry = 0; entry < nEntries; ++entry){
     if(entry%nDiv == 0) std::cout << " Entry " << entry << "/" << nEntries << std::endl;
-    jetTree_p->GetEntry(entry);
-    
-    
+    jetOrEGTree_p->GetEntry(entry);
+        
     int outEntry = -1;
+
+    UInt_t runTemp_ = 0;
+    UInt_t lumiTemp_ = 0;
+    ULong64_t eventTemp_ = 0;
+
     if(isStrSame(inHLTFileName, inOffFileName)) outEntry = entry;
-    else if(hltTreeName.size() != 0){
-          
+    else if(hltTreeName.size() != 0){          
       hltTree_p->GetEntry(entry);
-      unsigned long long key = keyFromRunLumiEvent(runHLT_, lumiHLT_, eventHLT_);
-      if(mapOfHLTRunLumiEvtToEntry.count(key) != 0) outEntry = mapOfHLTRunLumiEvtToEntry[key];
+      runTemp_ = runHLT_;
+      lumiTemp_ = lumiHLT_;
+      eventTemp_ = eventHLT_;
     }
     else{
-            hiTree_p->GetEntry(entry);
-      unsigned long long key = keyFromRunLumiEvent(runHI_, lumiHI_, eventHI_);
-      if(mapOfHLTRunLumiEvtToEntry.count(key) != 0) outEntry = mapOfHLTRunLumiEvtToEntry[key];
+      hiTree_p->GetEntry(entry);
+      runTemp_ = runHI_;
+      lumiTemp_ = lumiHI_;
+      eventTemp_ = eventHI_;
     }
 
-    
+    unsigned long long key = keyFromRunLumiEvent(runTemp_, lumiTemp_, eventTemp_);
+    if(outEntry < 0 && mapOfHLTRunLumiEvtToEntry.count(key) != 0) outEntry = mapOfHLTRunLumiEvtToEntry[key];
+
+    if(mapOfEventsInRun.count(runTemp_) == 0){
+      mapOfEventsInRun[runTemp_] = 1;
+      mapOfEventsInRunMatched[runTemp_] = 0;
+    }
+    else ++mapOfEventsInRun[runTemp_];
+        
     if(outEntry == -1) continue;
-
     ++matchCount;
-
     
+    ++mapOfEventsInRunMatched[runTemp_];
+
     if(hltTreeName2.size() != 0) hltTree2_p->GetEntry(outEntry);
     else l1UpgradeTree_p->GetEntry(outEntry);
    
-    Float_t tempLeadingJtPt_ = -1;
-    Float_t tempLeadingJtPhi_ = -1;
-    Float_t tempLeadingJtEta_ = -1;
+    Float_t tempLeadingPt_ = -1;
+    Float_t tempLeadingPhi_ = -1;
+    Float_t tempLeadingEta_ = -1;
 
-    
-    for(Int_t jI = 0; jI < nref_; ++jI){
-      if(TMath::Abs(jteta_[jI]) > absEtaMax) continue;
-      
-      if(jetTree.find("akCs4PF") != std::string::npos){
-	if(jtPfMUF_[jI] > 0.6) continue;
-	if(jtPfCHF_[jI] > 0.9) continue;
+    if(isOfflineJet){
+      for(Int_t jI = 0; jI < nref_; ++jI){
+	if(TMath::Abs(jteta_[jI]) > absEtaMax) continue;
+	
+	if(jetOrEGTree.find("akCs4PF") != std::string::npos){
+	  if(jtPfMUF_[jI] > 0.6) continue;
+	  if(jtPfCHF_[jI] > 0.9) continue;
+	}
+	
+	
+	if(jteta_[jI] >= -3.0 && jteta_[jI] <= -1.5){
+	  if(jtphi_[jI] >= -1.5 && jtphi_[jI] <= -1.0) continue;
+	}
+	
+	if(jtpt_[jI] > tempLeadingPt_){
+	  tempLeadingPt_ = jtpt_[jI];
+	  tempLeadingPhi_ = jtphi_[jI];
+	  tempLeadingEta_ = jteta_[jI];
+	}
       }
-      
+    }
+    else{
+      for(unsigned int pI = 0; pI < phoEt_p->size(); ++pI){
+	if(TMath::Abs(phoEta_p->at(pI)) > absEtaMax) continue;
+	if(TMath::Abs(pho_seedTime_p->at(pI)) >= 3) continue;
+	if(pho_swissCrx_p->at(pI) >= 0.9) continue;
+	if(phoSigmaIEtaIEta_2012_p->at(pI) <= 0.002) continue;
+	if(phoHoverE_p->at(pI) >= 0.15) continue;
+	if(pho_ecalClusterIsoR4_p->at(pI) + pho_hcalRechitIsoR4_p->at(pI) + pho_trackIsoR4PtCut20_p->at(pI) >= 20) continue;
+	if(phoSigmaIEtaIEta_2012_p->at(pI) >= 0.02) continue;
 
-      if(jteta_[jI] >= -3.0 && jteta_[jI] <= -1.5){
-	if(jtphi_[jI] >= -1.5 && jtphi_[jI] <= -1.0) continue;
-      }
-
-      if(jtpt_[jI] > tempLeadingJtPt_){
-	tempLeadingJtPt_ = jtpt_[jI];
-	tempLeadingJtPhi_ = jtphi_[jI];
-	tempLeadingJtEta_ = jteta_[jI];
+	if(tempLeadingPt_ < phoEt_p->at(pI)) tempLeadingPt_ = phoEt_p->at(pI);
       }
     }
 
-    if(tempLeadingJtPt_ >= binLow && tempLeadingJtPt_ < binHi){
-      denomHist_p->Fill(tempLeadingJtPt_);
+
+    if(tempLeadingPt_ >= binLow && tempLeadingPt_ < binHi){
+      denomHist_p->Fill(tempLeadingPt_);
 
       if(hltTreeName2.size() == 0){
 	Double_t leadingL1Object = -1;
 
-	if(isJet){
+	if(isTrigJet){
 	  for(unsigned int i = 0; i < Ana->jetEt.size(); ++i){
 	    if(Ana->jetEt.at(i) > leadingL1Object) leadingL1Object = Ana->jetEt.at(i);
 	  }
@@ -422,12 +511,23 @@ int quickTrigger(const std::string inOffFileName, const std::string jetTree, con
 	  else trigVal[i] = 0;
 	}
       }
-
-      
+     
       for(Int_t tI = 0; tI < nTrig; ++tI){
-	if(trigVal[tI]) trigHist_p[tI]->Fill(tempLeadingJtPt_);
-	else if(tempLeadingJtPt_ > 90 && trigList.at(tI).find("56") != std::string::npos){
-	  std::cout << "entry, leadingpt, phi, eta: " << entry << ", " << tempLeadingJtPt_ << ", " << tempLeadingJtPhi_ << ", " << tempLeadingJtEta_ << std::endl;
+	if(trigVal[tI]){
+	  trigHist_p[tI]->Fill(tempLeadingPt_);
+	  
+	  if(isOfflineJet && tempLeadingPt_ > 80 && trigList.at(tI).find("56") != std::string::npos && jetOrEGTree.find("akCs4PF") != std::string::npos){
+
+	    if(!isStrSame(inHLTFileName, inOffFileName)){
+	      std::cout << "RLEGOOD: " << runTemp_ << ":" << lumiTemp_ << ":" << eventTemp_ << std::endl;
+	    }
+	  }
+	}
+	else if(isOfflineJet && tempLeadingPt_ > 80 && trigList.at(tI).find("56") != std::string::npos){
+	  if(!isStrSame(inHLTFileName, inOffFileName)){
+	    std::cout << "RLEBAD: " << runTemp_ << ":" << lumiTemp_ << ":" << eventTemp_ << std::endl;
+	  }
+	  std::cout << "entry, leadingpt, phi, eta: " << entry << ", " << tempLeadingPt_ << ", " << tempLeadingPhi_ << ", " << tempLeadingEta_ << std::endl;
 	}
       }
     }    
@@ -526,7 +626,7 @@ int quickTrigger(const std::string inOffFileName, const std::string jetTree, con
   label_p->SetTextFont(43);
   label_p->SetTextSize(12);
 
-  label_p->DrawLatex(0.2, 0.95, (addedTag + ", |#eta| < " + prettyString(absEtaMax,1,false)).c_str());
+  label_p->DrawLatex(0.2, 0.95, (addedTag + ", |#eta| < " + prettyString(absEtaMax,2,false)).c_str());
 
   TLine* line_p = new TLine();
   line_p->SetLineStyle(2);
@@ -542,7 +642,7 @@ int quickTrigger(const std::string inOffFileName, const std::string jetTree, con
 
   checkMakeDir("pdfDir");
   checkMakeDir("pdfDir/" + dateStr);
-  std::string canvSaveName = "quickTurnOn_" + jetTree + "_" + addedTag;
+  std::string canvSaveName = "quickTurnOn_" + jetOrEGTree + "_" + addedTag;
   while(canvSaveName.find("/") != std::string::npos){canvSaveName.replace(canvSaveName.find("/"), 1, "_");}
   std::string canvSaveNameInv = canvSaveName + "_INV_" + dateStr + ".pdf";
   std::string canvSaveNameInvPNG = canvSaveName + "_INV_" + dateStr + ".png";
@@ -607,7 +707,11 @@ int quickTrigger(const std::string inOffFileName, const std::string jetTree, con
   }
   
 
-  std::cout << "Match Count: " << matchCount << "/" << nEntries << ": " << ((Double_t)matchCount)/((Double_t)nEntries) << std::endl;;
+  std::cout << "Match Count: " << matchCount << "/" << nEntries << " = " << ((Double_t)matchCount)/((Double_t)nEntries) << std::endl;
+
+  for(auto const& map : mapOfEventsInRun){
+    std::cout << " " << map.first << ": " << mapOfEventsInRunMatched[map.first] << "/" << map.second << " = " << ((Double_t)mapOfEventsInRunMatched[map.first])/((Double_t)map.second) << std::endl;
+  }
 
   return 0;
 }
@@ -615,7 +719,7 @@ int quickTrigger(const std::string inOffFileName, const std::string jetTree, con
 int main(int argc, char* argv[])
 {
   if(argc != 6){
-    std::cout << "Usage: ./bin/quickTrigger.exe <inOffFileName> <jetTree> <inHLTFileName> <commaSeparatedTrigList> <addedTag>" << std::endl;
+    std::cout << "Usage: ./bin/quickTrigger.exe <inOffFileName> <jetOrEGTree> <inHLTFileName> <commaSeparatedTrigList> <addedTag>" << std::endl;
     return 1;
   }
   
