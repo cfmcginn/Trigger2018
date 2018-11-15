@@ -12,7 +12,7 @@ MKDIR_BIN = mkdir -p $(PWD)/bin
 MKDIR_PDFDIR = mkdir -p $(PWD)/pdfDir
 MKDIR_OUTPUT = mkdir -p $(PWD)/output
 
-all: mkdirBin mkdirOutput mkdirPdfdir bin/l1Comp.exe bin/l1OfflineSubtract.exe bin/l1FiringFraction.exe bin/l1CaloTowerDist.exe bin/l1OfflineEvtDisp.exe bin/l1ToTTree.exe bin/hltFiringFraction.exe bin/checkHLTAgainstL1Xml.exe bin/checkHLTAgainstPrescaleInput.exe bin/listHLT.exe bin/doPrescaling.exe bin/quickHiBin.exe bin/emptyBunches.exe bin/createJsonFromL1.exe bin/modInput.exe bin/countsFromMB.exe bin/targetGlobalPrescaledRate.exe bin/categorySort.exe bin/countSummary.exe bin/globalCSVToPrescales.exe bin/runMBScenario.exe bin/quickTrigger.exe bin/createJsonFromForest.exe
+all: mkdirBin mkdirOutput mkdirPdfdir bin/l1Comp.exe bin/l1OfflineSubtract.exe bin/l1FiringFraction.exe bin/l1CaloTowerDist.exe bin/l1OfflineEvtDisp.exe bin/l1ToTTree.exe bin/hltFiringFraction.exe bin/checkHLTAgainstL1Xml.exe bin/checkHLTAgainstPrescaleInput.exe bin/listHLT.exe bin/doPrescaling.exe bin/quickHiBin.exe bin/emptyBunches.exe bin/createJsonFromL1.exe bin/modInput.exe bin/countsFromMB.exe bin/targetGlobalPrescaledRate.exe bin/categorySort.exe bin/countSummary.exe bin/globalCSVToPrescales.exe bin/runMBScenario.exe bin/quickTrigger.exe bin/createJsonFromForest.exe bin/globalCSVToTiming.exe bin/quickScale.exe
 
 mkdirBin:
 	$(MKDIR_BIN)
@@ -83,6 +83,9 @@ bin/countSummary.exe: src/countSummary.C
 bin/globalCSVToPrescales.exe: src/globalCSVToPrescales.C
 	$(CXX) src/globalCSVToPrescales.C $(CXXFLAGS) $(ROOT) -I $(PWD) -o bin/globalCSVToPrescales.exe 
 
+bin/globalCSVToTiming.exe: src/globalCSVToTiming.C
+	$(CXX) src/globalCSVToTiming.C $(CXXFLAGS) $(ROOT) -I $(PWD) -o bin/globalCSVToTiming.exe 
+
 bin/runMBScenario.exe: src/runMBScenario.C
 	$(CXX) src/runMBScenario.C $(CXXFLAGS) $(ROOT) -I $(PWD) -o bin/runMBScenario.exe
 
@@ -91,6 +94,9 @@ bin/quickTrigger.exe: src/quickTrigger.C
 
 bin/createJsonFromForest.exe: src/createJsonFromForest.C
 	$(CXX) $(CXXFLAGS) src/createJsonFromForest.C $(ROOT) -I $(PWD) -o bin/createJsonFromForest.exe 
+
+bin/quickScale.exe: src/quickScale.C
+	$(CXX) $(CXXFLAGS) src/quickScale.C $(ROOT) -I $(PWD) -o bin/quickScale.exe 
 
 clean:
 	rm *~ || true
